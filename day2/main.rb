@@ -21,7 +21,9 @@ File.readlines('input.txt', chomp: true).each do |line|
     combo.strip.split(',').each do |color_pair|
       num, color = color_pair.split ' '
       num = num.to_i
-      valid = (color == 'red' && num <= MAX_RED) || (color == 'green' && num <= MAX_GREEN) || (color == 'blue' && num <= MAX_BLUE)
+      valid = (color == 'red' && num <= MAX_RED) ||
+              (color == 'green' && num <= MAX_GREEN) ||
+              (color == 'blue' && num <= MAX_BLUE)
       break unless valid
     end
     break unless valid
@@ -30,3 +32,5 @@ File.readlines('input.txt', chomp: true).each do |line|
 end
 
 puts sum
+
+raise 'Wrong solution' if sum != 1931
