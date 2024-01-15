@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+// What is the sum of all of the part numbers in the engine schematic?
+
 // Inspired by https://stackoverflow.com/questions/48936647/read-a-matrix-from-a-file
 char** readMatrix(int *rows, int *cols) {
   *rows = 0;
