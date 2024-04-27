@@ -4,7 +4,20 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#define GEAR_SYMBOL '*'
+
 // What is the sum of all of the gear ratios in your engine schematic?
+
+struct Gear {
+  int row, col, ratio;
+  bool isComplete; // if has multiplied 2 part numbers already
+  bool isOverParted; // if exceeded 2 adjacent parts
+};
+
+// Including invalid gears: those with only 1 part and those with too many parts. 
+int numGears = 0;
+int gearArraySize = 0;
+struct Gear *gears = NULL;
 
 // Inspired by https://stackoverflow.com/questions/48936647/read-a-matrix-from-a-file
 char** readMatrix(int *rows, int *cols) {
@@ -67,37 +80,56 @@ void printMatrix(char **matrix, int rows, int cols) {
   printf("Finished print\n");
 }
 
-bool isSymbol(char c) {
-  return c != '.' && (c < '0' || c > '9');
+void attributeNumToSingleGear(int num, int gearRow, int gearCol) {
+  // find gear
+  for (int i = 0; i < numGears; i++) {
+    if (gears[i].row == gearRow && gears[i].col == gearCol) {
+      if (gears[i].isComplete) gears[i].isOverParted = true; // assuming that already over-parted gears have (isComplete == full)
+      else { // attribute second part
+        gears[i].ratio *= num;
+        gears[i].isComplete = true;
+      }
+      return;
+    }
+  }
+
+  // create gear if not found
+  if (numGears + 1 > gearArraySize) {
+    gearArraySize += 100;
+    gears = realloc(gears, gearArraySize * sizeof(struct Gear));
+  }
+  gears[numGears] = (struct Gear) { .row = gearRow, .col = gearCol, .ratio = num, .isComplete = false, .isOverParted = false }; // create with first part
+  numGears += 1;
 }
 
-bool isAdjacent(int num, int row, int startInd, int endInd, char **matrix, int rows, int cols) {
+// Looks for gears adjacent to the number, and processes the number in each.
+// No longer need to check for all symbols, as we only care for gears ('*').
+// The global gears array is allocated here. Assumes it starts as NULL.
+// Indirect output: the gears array, initialized with all processed gears.
+void attributeNumToGears(int num, int row, int startInd, int endInd, char **matrix, int rows, int cols) {
   int topBottomStart = startInd > 0 ? startInd - 1 : startInd;
   int topBottomGear = endInd < cols - 1 ? endInd + 1 : endInd;
   // check top values
   if (row > 0) {
     for (int i = topBottomStart; i < topBottomGear; i++) {
-      if (isSymbol(matrix[row - 1][i])) return true;
+      if (matrix[row - 1][i] == GEAR_SYMBOL) attributeNumToSingleGear(num, row - 1, i);
     }
   }
 
   // check bottom values
   if (row < rows - 1) {
     for (int i = topBottomStart; i < topBottomGear; i++) {
-      if (isSymbol(matrix[row + 1][i])) return true;
+      if (matrix[row + 1][i] == GEAR_SYMBOL) attributeNumToSingleGear(num, row + 1, i);
     }
   }
 
   // check side values
-  if (startInd > 0 && isSymbol(matrix[row][startInd - 1])) return true;
-  if (endInd < cols - 1 && isSymbol(matrix[row][endInd])) return true;
-
-  return false;
+  if (startInd > 0 && matrix[row][startInd - 1] == GEAR_SYMBOL) attributeNumToSingleGear(num, row, startInd - 1);
+  if (endInd < cols - 1 && matrix[row][endInd] == GEAR_SYMBOL) attributeNumToSingleGear(num, row, endInd);
 }
 
 int calculateSum(char **matrix, int rows, int cols) {
-  int sum = 0;
-
+  // initialize gears array
   for (int i = 0; i < rows; i++) {
     int j = 0;
     while (j < cols) {
@@ -110,13 +142,17 @@ int calculateSum(char **matrix, int rows, int cols) {
 
       int num, offset;
       sscanf(matrix[i] + j, "%d%n", &num, &offset);
-      if (isAdjacent(num, i, j, j + offset, matrix, rows, cols)) {
-        sum += num;
-      }
+      attributeNumToGears(num, i, j, j + offset, matrix, rows, cols);
       j += offset;
     }
   }
 
+  // iterate gears
+  int sum = 0;
+  for (int i = 0; i < numGears; i++) {
+    if (!gears[i].isComplete || gears[i].isOverParted) continue;
+    sum += gears[i].ratio;
+  }
   return sum;
 }
 
@@ -135,11 +171,12 @@ int main() {
   printf("Sum: %d\n", sum);
 
   free(matrix);
+  free(gears);
 
-  // if (sum != 528819) {
-  //   printf("Wrong solution\n");
-  //   return 1;
-  // }
+  if (sum != 80403602) {
+    printf("Wrong solution\n");
+    return 1;
+  }
 
   return 0;
 }
